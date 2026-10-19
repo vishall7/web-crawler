@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Crawlee persistent storage and generated datasets
+storage/
+apify_storage/
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+
+# Generated output
+dist/
+build/
+coverage/
+*.jsonl
+emails.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

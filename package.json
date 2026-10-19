@@ -1,0 +1,20 @@
+{
+  "name": "web-scrapper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "scrap.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "search": "node src/domains.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@crawlee/impit-client": "^3.18.2",
+    "crawlee": "^3.18.2",
+    "playwright": "^1.64.1",
+    "tldts": "^7.4.18"
+  }
+}
