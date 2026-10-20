@@ -1,4 +1,6 @@
-import { CheerioCrawler, Dataset } from "crawlee";
+import { writeFile, readFile, rename } from "node:fs/promises";
+import { resolve } from "node:path";
+import { CheerioCrawler, Configuration } from "crawlee";
 import { ImpitHttpClient, Browser } from "@crawlee/impit-client";
 import {
   CONTACT_LINK_RE,
@@ -7,14 +9,18 @@ import {
 } from "./constants/query.constant.js";
 import { extractEmails } from "./utils/emails.utils.js";
 
+Configuration.getGlobalConfig().set("persistStorage", false);
+
 const sites = [
   "https://www.neelnetworks.com/",
   // paste site root URLs here
 ];
 const emailsBySite = new Map();
 const triedBySite = new Map();
-const dataset = await Dataset.open("emails");
 const seenEmails = new Set();
+const outputPath = resolve("emails.json");
+const temporaryOutputPath = `${outputPath}.tmp`;
+let outputWrite = Promise.resolve();
 const origin = (u) => new URL(u).origin;
 const getSet = (map, key) => {
   let set = map.get(key);
@@ -26,18 +32,27 @@ const getSet = (map, key) => {
 };
 const track = (url) => getSet(triedBySite, origin(url)).add(url);
 const loadExistingEmails = async () => {
-  const pageSize = 1000;
-  let offset = 0;
+  try {
+    const items = JSON.parse(await readFile(outputPath, "utf8"));
+    if (!Array.isArray(items)) {
+      throw new Error(`Expected ${outputPath} to contain a JSON array`);
+    }
 
-  while (true) {
-    const { items } = await dataset.getData({ limit: pageSize, offset });
     items.forEach((item) => {
-      if (typeof item.email === "string") seenEmails.add(item.email);
+      if (typeof item?.email === "string") seenEmails.add(item.email);
     });
-
-    if (items.length < pageSize) return;
-    offset += pageSize;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
   }
+};
+
+const flushOutput = () => {
+  outputWrite = outputWrite.then(async () => {
+    const items = [...seenEmails].map((email) => ({ email }));
+    await writeFile(temporaryOutputPath, JSON.stringify(items, null, 2));
+    await rename(temporaryOutputPath, outputPath);
+  });
+  return outputWrite;
 };
 
 const add = async (url, list) => {
@@ -47,11 +62,15 @@ const add = async (url, list) => {
 
     if (seenEmails.has(email)) continue;
     seenEmails.add(email);
-    await dataset.pushData({ email });
   }
 };
 
 await loadExistingEmails();
+const outputInterval = setInterval(() => {
+  void flushOutput().catch((error) => {
+    console.error(`Failed to write ${outputPath}:`, error);
+  });
+}, 1000);
 
 // 1) Cheerio pass
 const cheerioCrawler = new CheerioCrawler({
@@ -137,7 +156,8 @@ if (pending.size) {
   );
 }
 
-await dataset.exportToJSON("emails.json");
+clearInterval(outputInterval);
+await flushOutput();
 
 for (const [site, set] of emailsBySite) {
   console.log(site, [...set]);
